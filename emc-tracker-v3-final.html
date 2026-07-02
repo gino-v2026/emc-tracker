@@ -1,0 +1,593 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EMC & Co — Project Tracker</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #F7F9FB; font-family: 'Inter', system-ui, sans-serif; color: #111; }
+  ::-webkit-scrollbar { width: 5px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: #CBD5E1; border-radius: 3px; }
+  input, textarea, select { font-family: inherit; }
+  input[type=range] { cursor: pointer; accent-color: #06B6D4; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const { useState, useEffect, useCallback } = React;
+
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzHop2DRwtAi5OGkq121JWV77xthMM68iFt8m02-sTot4gcbh-3B4R-GbdSCHLiFGBnSg/exec";
+
+const DEFAULT_TEAM = ["Gino", "Elise"];
+
+const SEED = [
+  {
+    id:"p1", name:"GHL CX Workflow Build", status:"active", color:"#06B6D4",
+    description:"Build and deploy a standardized customer experience workflow in GoHighLevel covering inbound calls, missed call text-back, SMS follow-up, and voicemail automation — ensuring every Inspire lead gets a consistent, professional response from first contact to booked job.",
+    completion:30, dueDate:"2026-08-15", startDate:"2026-06-01", priority:"high", health:"on-track",
+    actionItems:[
+      {id:"a1",text:"Map full customer journey touchpoints",done:true,assignee:"Gino"},
+      {id:"a2",text:"Build inbound call workflow in GHL",done:false,assignee:"Elise"},
+      {id:"a3",text:"Configure SMS follow-up sequences",done:false,assignee:"Elise"},
+      {id:"a4",text:"Set up voicemail drop automation",done:false,assignee:""},
+      {id:"a5",text:"QA test all trigger conditions",done:false,assignee:"Gino"},
+    ],
+    pendingItems:[
+      {id:"b1",text:"Elise to deliver GHL pipeline structure draft",owner:"Elise",due:"2026-07-10"},
+      {id:"b2",text:"Gino to approve final CX workflow map",owner:"Gino",due:"2026-07-15"},
+      {id:"b3",text:"Phone number porting confirmation from carrier",owner:"Carrier",due:"TBD"},
+    ],
+    keyDates:[
+      {id:"d1",label:"Kickoff Complete",date:"2026-06-01",type:"milestone"},
+      {id:"d2",label:"Workflow Draft Review",date:"2026-07-15",type:"review"},
+      {id:"d3",label:"Go-Live Target",date:"2026-08-15",type:"deadline"},
+    ],
+    notes:"Top priority per Wayne coaching session. CX standardization must be complete before Leadership Academy launch.",
+    team:["Gino","Elise"],
+  },
+  {
+    id:"p2", name:"Canva Social Templates", status:"active", color:"#0891B2",
+    description:"Design and finalize Inspire job showcase post templates for social media publishing.",
+    completion:60, dueDate:"2026-07-20", startDate:"2026-05-15", priority:"medium", health:"on-track",
+    actionItems:[
+      {id:"a1",text:"Finalize brand color palette and fonts in Canva",done:true,assignee:"Elise"},
+      {id:"a2",text:"Build before/after job showcase template",done:true,assignee:"Elise"},
+      {id:"a3",text:"Build team/crew spotlight template",done:false,assignee:"Elise"},
+      {id:"a4",text:"Create caption formula for each template type",done:false,assignee:"Gino"},
+      {id:"a5",text:"Test post flow in GHL",done:false,assignee:""},
+    ],
+    pendingItems:[
+      {id:"b1",text:"Gino to approve 3 template designs from Canva preview",owner:"Gino",due:"2026-07-08"},
+      {id:"b2",text:"Elise to set up GHL social publishing connection",owner:"Elise",due:"2026-07-15"},
+    ],
+    keyDates:[
+      {id:"d1",label:"Templates Drafted",date:"2026-06-30",type:"milestone"},
+      {id:"d2",label:"Gino Approval Deadline",date:"2026-07-08",type:"review"},
+      {id:"d3",label:"Live Publishing Target",date:"2026-07-20",type:"deadline"},
+    ],
+    notes:"Deferred GHL automation integration — maintain momentum on template completion first.",
+    team:["Gino","Elise"],
+  },
+  {
+    id:"p3", name:"VA Support Onboarding", status:"planning", color:"#164E63",
+    description:"Define VA role scope, SOPs, and recurring task assignments within EMC & Co support structure.",
+    completion:15, dueDate:"2026-09-01", startDate:"2026-07-01", priority:"medium", health:"at-risk",
+    actionItems:[
+      {id:"a1",text:"Document list of recurring weekly tasks for VA",done:true,assignee:"Gino"},
+      {id:"a2",text:"Build VA SOP for inbound lead follow-up",done:false,assignee:"Elise"},
+      {id:"a3",text:"Define reporting cadence between VA and Gino",done:false,assignee:"Gino"},
+      {id:"a4",text:"Set up shared task view in GHL for VA",done:false,assignee:"Elise"},
+    ],
+    pendingItems:[
+      {id:"b1",text:"EMC to confirm VA bandwidth and availability",owner:"Elise",due:"2026-07-15"},
+      {id:"b2",text:"Gino to draft priority task list for VA handoff",owner:"Gino",due:"2026-07-20"},
+    ],
+    keyDates:[
+      {id:"d1",label:"Scope Definition Complete",date:"2026-07-20",type:"milestone"},
+      {id:"d2",label:"VA Onboarding Start",date:"2026-08-01",type:"milestone"},
+      {id:"d3",label:"First Full Week Live",date:"2026-09-01",type:"deadline"},
+    ],
+    notes:"Dependent on GHL CX workflow being live — VA needs a stable system to operate within.",
+    team:["Gino","Elise"],
+  },
+];
+
+const healthColors = {"on-track":"#06B6D4","at-risk":"#F59E0B","blocked":"#EF4444","complete":"#111"};
+const healthLabels = {"on-track":"On Track","at-risk":"At Risk","blocked":"Blocked","complete":"Complete"};
+const priorityColors = {high:"#EF4444",medium:"#F59E0B",low:"#94A3B8"};
+const dateTypeColors = {milestone:"#06B6D4",review:"#F59E0B",deadline:"#EF4444"};
+const assigneeColors = {"Gino":"#06B6D4","Elise":"#8B5CF6"};
+
+function daysUntil(d) { if(!d||d==="TBD") return null; return Math.ceil((new Date(d)-new Date())/86400000); }
+function fmtDate(d) { if(!d||d==="TBD") return "TBD"; return new Date(d).toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"}); }
+
+const inp = { background:"#fff", border:"1.5px solid #E2E8F0", borderRadius:8, color:"#111", padding:"8px 12px", width:"100%", fontSize:13, outline:"none", boxSizing:"border-box" };
+const lbl = { color:"#64748B", fontSize:12, marginBottom:4, display:"block", fontWeight:600 };
+
+function notify(action, body) {
+  fetch(SCRIPT_URL, { method:"POST", body: JSON.stringify({action, ...body}) }).catch(()=>{});
+}
+
+function Gauge({pct, color, size=80}) {
+  const r=size*0.38,cx=size/2,cy=size/2,circ=2*Math.PI*r,dash=(pct/100)*circ;
+  return (
+    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
+      <circle cx={cx} cy={cy} r={r} fill="none" stroke="#E2E8F0" strokeWidth={size*0.1}/>
+      <circle cx={cx} cy={cy} r={r} fill="none" stroke={color} strokeWidth={size*0.1}
+        strokeDasharray={`${dash} ${circ}`} strokeLinecap="round"
+        transform={`rotate(-90 ${cx} ${cy})`} style={{transition:"stroke-dasharray 0.7s ease"}}/>
+      <text x={cx} y={cy+1} textAnchor="middle" dominantBaseline="middle"
+        fill="#111" fontSize={size*0.19} fontWeight="800" fontFamily="system-ui">{pct}%</text>
+    </svg>
+  );
+}
+
+function Bar({pct, color}) {
+  return <div style={{background:"#E2E8F0",borderRadius:4,height:6,overflow:"hidden"}}>
+    <div style={{width:`${pct}%`,background:color,height:"100%",borderRadius:4,transition:"width 0.6s ease"}}/>
+  </div>;
+}
+
+function AssigneeBadge({name}) {
+  if(!name) return null;
+  const color = assigneeColors[name] || "#94A3B8";
+  return <span style={{fontSize:10,fontWeight:700,padding:"2px 7px",borderRadius:20,background:`${color}18`,color,border:`1px solid ${color}30`,whiteSpace:"nowrap"}}>{name}</span>;
+}
+
+function Modal({title, onClose, children}) {
+  return <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.3)",zIndex:1000,display:"flex",alignItems:"center",justifyContent:"center",padding:16}}>
+    <div style={{background:"#fff",border:"1.5px solid #E2E8F0",borderRadius:14,width:"100%",maxWidth:500,maxHeight:"88vh",overflowY:"auto",padding:28,boxShadow:"0 20px 60px rgba(0,0,0,0.15)"}}>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:22}}>
+        <span style={{color:"#111",fontWeight:800,fontSize:17}}>{title}</span>
+        <button onClick={onClose} style={{background:"none",border:"none",color:"#94A3B8",fontSize:24,cursor:"pointer",lineHeight:1}}>×</button>
+      </div>
+      {children}
+    </div>
+  </div>;
+}
+
+function ProjectModal({initial, onClose, onSave, mode="add"}) {
+  const [f,setF] = useState(initial||{name:"",description:"",color:"#06B6D4",dueDate:"",startDate:"",priority:"medium",health:"on-track",notes:""});
+  const set=(k,v)=>setF(x=>({...x,[k]:v}));
+  const save=()=>{ if(!f.name.trim()) return; onSave(f); };
+  return <Modal title={mode==="add"?"New Project":`Edit: ${f.name}`} onClose={onClose}>
+    <div style={{display:"flex",flexDirection:"column",gap:14}}>
+      <div><label style={lbl}>Project Name *</label><input style={inp} value={f.name} onChange={e=>set("name",e.target.value)} placeholder="e.g. GHL CX Workflow"/></div>
+      <div><label style={lbl}>Description</label><textarea style={{...inp,resize:"vertical",minHeight:68}} value={f.description} onChange={e=>set("description",e.target.value)}/></div>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+        <div><label style={lbl}>Start Date</label><input type="date" style={inp} value={f.startDate} onChange={e=>set("startDate",e.target.value)}/></div>
+        <div><label style={lbl}>Due Date</label><input type="date" style={inp} value={f.dueDate} onChange={e=>set("dueDate",e.target.value)}/></div>
+      </div>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 80px",gap:12}}>
+        <div><label style={lbl}>Priority</label>
+          <select style={inp} value={f.priority} onChange={e=>set("priority",e.target.value)}>
+            <option value="high">High</option><option value="medium">Medium</option><option value="low">Low</option>
+          </select></div>
+        <div><label style={lbl}>Health</label>
+          <select style={inp} value={f.health} onChange={e=>set("health",e.target.value)}>
+            {Object.entries(healthLabels).map(([k,v])=><option key={k} value={k}>{v}</option>)}
+          </select></div>
+        <div><label style={lbl}>Color</label><input type="color" style={{...inp,padding:4,height:38,cursor:"pointer"}} value={f.color} onChange={e=>set("color",e.target.value)}/></div>
+      </div>
+      <div><label style={lbl}>Notes</label><textarea style={{...inp,resize:"vertical",minHeight:56}} value={f.notes} onChange={e=>set("notes",e.target.value)}/></div>
+      <button onClick={save} style={{marginTop:4,padding:"11px 0",background:"#06B6D4",color:"#fff",border:"none",borderRadius:8,fontWeight:800,fontSize:15,cursor:"pointer"}}>
+        {mode==="add"?"Create Project":"Save Changes"}
+      </button>
+    </div>
+  </Modal>;
+}
+
+// ── Add Person Modal ──────────────────────────────────────────────────────────
+function AddPersonModal({onClose, onAdd}) {
+  const [name,setName] = useState("");
+  const [email,setEmail] = useState("");
+  return <Modal title="Add Team Member" onClose={onClose}>
+    <div style={{display:"flex",flexDirection:"column",gap:14}}>
+      <div><label style={lbl}>Name *</label><input style={inp} value={name} onChange={e=>setName(e.target.value)} placeholder="e.g. John"/></div>
+      <div><label style={lbl}>Email *</label><input style={inp} value={email} onChange={e=>setEmail(e.target.value)} placeholder="e.g. john@inspirejunkremoval.com"/></div>
+      <button onClick={()=>{ if(name.trim()&&email.trim()) onAdd(name.trim(),email.trim()); }} style={{padding:"11px 0",background:"#06B6D4",color:"#fff",border:"none",borderRadius:8,fontWeight:800,fontSize:15,cursor:"pointer"}}>Add Member</button>
+    </div>
+  </Modal>;
+}
+
+function Dashboard({projects, onSelect, onAdd, syncing}) {
+  const total=projects.length;
+  const active=projects.filter(p=>p.status==="active").length;
+  const avg=total?Math.round(projects.reduce((s,p)=>{
+    const done=(p.actionItems||[]).filter(a=>a.done).length;
+    const tot=(p.actionItems||[]).length;
+    return s+(tot>0?Math.round((done/tot)*100):p.completion);
+  },0)/total):0;
+  const atRisk=projects.filter(p=>p.health==="at-risk"||p.health==="blocked").length;
+  const allDates=projects.flatMap(p=>(p.keyDates||[]).map(d=>({...d,project:p.name,color:p.color})))
+    .filter(d=>d.date&&d.date!=="TBD").sort((a,b)=>new Date(a.date)-new Date(b.date))
+    .filter(d=>daysUntil(d.date)>=0).slice(0,6);
+
+  return <div>
+    <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-end",marginBottom:24}}>
+      <div>
+        <div style={{color:"#06B6D4",fontSize:11,fontWeight:800,textTransform:"uppercase",letterSpacing:2,marginBottom:4}}>EMC & CO</div>
+        <h1 style={{fontSize:24,fontWeight:900,color:"#0F172A",letterSpacing:-.5}}>Project Tracker</h1>
+      </div>
+      <div style={{display:"flex",alignItems:"center",gap:12}}>
+        {syncing&&<span style={{fontSize:12,color:"#06B6D4",fontWeight:600}}>⟳ Syncing…</span>}
+        <button onClick={onAdd} style={{background:"#06B6D4",border:"none",color:"#fff",padding:"10px 20px",borderRadius:9,fontWeight:700,cursor:"pointer",fontSize:14,boxShadow:"0 4px 14px rgba(6,182,212,0.35)"}}>+ New Project</button>
+      </div>
+    </div>
+
+    <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:12,marginBottom:28}}>
+      {[
+        {label:"Total Projects",value:total,accent:"#06B6D4"},
+        {label:"Active",value:active,accent:"#06B6D4"},
+        {label:"Avg Completion",value:`${avg}%`,accent:"#06B6D4"},
+        {label:"Needs Attention",value:atRisk,accent:atRisk>0?"#EF4444":"#E2E8F0"},
+      ].map(c=><div key={c.label} style={{background:"#fff",border:"1.5px solid #E2E8F0",borderRadius:12,padding:"16px 18px",borderTop:`3px solid ${c.accent}`}}>
+        <div style={{color:"#94A3B8",fontSize:11,textTransform:"uppercase",letterSpacing:.8,fontWeight:700,marginBottom:6}}>{c.label}</div>
+        <div style={{color:"#0F172A",fontSize:30,fontWeight:900}}>{c.value}</div>
+      </div>)}
+    </div>
+
+    <div style={{color:"#94A3B8",fontSize:11,textTransform:"uppercase",letterSpacing:1,fontWeight:700,marginBottom:10}}>All Projects</div>
+    <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(265px,1fr))",gap:14,marginBottom:30}}>
+      {projects.map(p=>{
+        const done=(p.actionItems||[]).filter(a=>a.done).length;
+        const tot=(p.actionItems||[]).length;
+        const pct=tot>0?Math.round((done/tot)*100):p.completion;
+        const days=daysUntil(p.dueDate);
+        const myTasks=(p.actionItems||[]).filter(a=>a.assignee==="Gino"&&!a.done).length;
+        const eliseTasks=(p.actionItems||[]).filter(a=>a.assignee==="Elise"&&!a.done).length;
+        return <div key={p.id} onClick={()=>onSelect(p.id)}
+          style={{background:"#fff",border:"1.5px solid #E2E8F0",borderRadius:12,padding:20,cursor:"pointer",transition:"all 0.18s",borderTop:`3px solid ${p.color}`}}
+          onMouseEnter={e=>{e.currentTarget.style.boxShadow="0 8px 28px rgba(6,182,212,0.13)";e.currentTarget.style.borderColor=p.color;}}
+          onMouseLeave={e=>{e.currentTarget.style.boxShadow="none";e.currentTarget.style.borderColor="#E2E8F0";e.currentTarget.style.borderTopColor=p.color;}}>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:12}}>
+            <div style={{flex:1,paddingRight:10}}>
+              <div style={{color:"#0F172A",fontWeight:800,fontSize:15,lineHeight:1.3}}>{p.name}</div>
+              <div style={{color:"#94A3B8",fontSize:12,marginTop:5,lineHeight:1.4}}>{p.description?.slice(0,65)}{p.description?.length>65?"…":""}</div>
+            </div>
+            <Gauge pct={pct} color={p.color} size={58}/>
+          </div>
+          <Bar pct={pct} color={p.color}/>
+          <div style={{display:"flex",justifyContent:"space-between",marginTop:11,alignItems:"center"}}>
+            <span style={{fontSize:11,color:healthColors[p.health],background:`${healthColors[p.health]}15`,padding:"2px 9px",borderRadius:20,fontWeight:700,border:`1px solid ${healthColors[p.health]}30`}}>{healthLabels[p.health]}</span>
+            <span style={{fontSize:11,color:"#94A3B8"}}>{tot>0?`${done}/${tot} tasks`:"No tasks"} · {days===null?"No date":days<0?`${Math.abs(days)}d over`:days===0?"Due today":`${days}d left`}</span>
+          </div>
+          {(myTasks>0||eliseTasks>0)&&<div style={{display:"flex",gap:6,marginTop:10}}>
+            {myTasks>0&&<span style={{fontSize:10,color:"#06B6D4",background:"#F0FDFF",padding:"2px 7px",borderRadius:20,fontWeight:700}}>Gino: {myTasks} open</span>}
+            {eliseTasks>0&&<span style={{fontSize:10,color:"#8B5CF6",background:"#F5F3FF",padding:"2px 7px",borderRadius:20,fontWeight:700}}>Elise: {eliseTasks} open</span>}
+          </div>}
+        </div>;
+      })}
+      <div onClick={onAdd}
+        style={{background:"#F8FAFC",border:"1.5px dashed #CBD5E1",borderRadius:12,padding:20,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:8,color:"#CBD5E1",transition:"all 0.18s",minHeight:130}}
+        onMouseEnter={e=>{e.currentTarget.style.borderColor="#06B6D4";e.currentTarget.style.color="#06B6D4";}}
+        onMouseLeave={e=>{e.currentTarget.style.borderColor="#CBD5E1";e.currentTarget.style.color="#CBD5E1";}}>
+        <span style={{fontSize:26,fontWeight:300}}>+</span>
+        <span style={{fontSize:14,fontWeight:600}}>New Project</span>
+      </div>
+    </div>
+
+    {allDates.length>0&&<div>
+      <div style={{color:"#94A3B8",fontSize:11,textTransform:"uppercase",letterSpacing:1,fontWeight:700,marginBottom:10}}>Upcoming Dates</div>
+      <div style={{background:"#fff",border:"1.5px solid #E2E8F0",borderRadius:12,overflow:"hidden"}}>
+        {allDates.map((d,i)=>{
+          const days=daysUntil(d.date);
+          return <div key={d.id+d.project} style={{display:"flex",alignItems:"center",gap:14,padding:"12px 18px",borderBottom:i<allDates.length-1?"1px solid #F1F5F9":"none"}}>
+            <div style={{width:3,height:36,borderRadius:2,background:d.color,flexShrink:0}}/>
+            <div style={{flex:1}}>
+              <div style={{color:"#0F172A",fontSize:13,fontWeight:700}}>{d.label}</div>
+              <div style={{color:"#94A3B8",fontSize:11,marginTop:1}}>{d.project}</div>
+            </div>
+            <div style={{textAlign:"right"}}>
+              <div style={{color:"#334155",fontSize:13,fontWeight:600}}>{fmtDate(d.date)}</div>
+              <div style={{color:days<=7?"#F59E0B":"#CBD5E1",fontSize:11,marginTop:1}}>{days===0?"Today":`${days}d away`}</div>
+            </div>
+          </div>;
+        })}
+      </div>
+    </div>}
+  </div>;
+}
+
+function ProjectDetail({project, onUpdate, onDelete, onBack, teamMembers, onAddPerson}) {
+  const [p,setP] = useState({...project});
+  const [newAction,setNewAction] = useState("");
+  const [newAssignee,setNewAssignee] = useState("");
+  const [newPending,setNewPending] = useState({text:"",owner:"",due:""});
+  const [newDate,setNewDate] = useState({label:"",date:"",type:"milestone"});
+  const [editOpen,setEditOpen] = useState(false);
+  const [showAddPerson,setShowAddPerson] = useState(false);
+
+  useEffect(()=>{ setP({...project}); },[project.id]);
+
+  const push=u=>{ setP(u); onUpdate(u); };
+  const done=(p.actionItems||[]).filter(a=>a.done).length;
+  const tot=(p.actionItems||[]).length;
+  const pct=tot>0?Math.round((done/tot)*100):p.completion;
+  const days=daysUntil(p.dueDate);
+
+  const addAction=()=>{
+    if(!newAction.trim()) return;
+    const newItem = {id:"a"+Date.now(),text:newAction.trim(),done:false,assignee:newAssignee};
+    const updated = {...p,actionItems:[...p.actionItems,newItem]};
+    push(updated);
+    if(newAssignee) {
+      notify("notify_assigned",{assignee:newAssignee,taskText:newAction.trim(),projectName:p.name,assignedBy:"EMC Tracker"});
+    }
+    setNewAction(""); setNewAssignee("");
+  };
+
+  const toggleAction=id=>{
+    const item = p.actionItems.find(a=>a.id===id);
+    const wasNotDone = !item.done;
+    const updated = {...p,actionItems:p.actionItems.map(a=>a.id===id?{...a,done:!a.done}:a)};
+    push(updated);
+    if(wasNotDone && item.assignee) {
+      notify("notify_completed",{assignee:item.assignee,taskText:item.text,projectName:p.name,completedBy:"EMC Tracker"});
+    }
+  };
+
+  const changeAssignee=(id,assignee)=>{
+    const item = p.actionItems.find(a=>a.id===id);
+    const updated = {...p,actionItems:p.actionItems.map(a=>a.id===id?{...a,assignee}:a)};
+    push(updated);
+    if(assignee && assignee !== item.assignee) {
+      notify("notify_assigned",{assignee,taskText:item.text,projectName:p.name,assignedBy:"EMC Tracker"});
+    }
+  };
+
+  const rmAction=id=>push({...p,actionItems:p.actionItems.filter(a=>a.id!==id)});
+  const addPending=()=>{ if(!newPending.text.trim()) return; push({...p,pendingItems:[...p.pendingItems,{id:"b"+Date.now(),...newPending}]}); setNewPending({text:"",owner:"",due:""}); };
+  const rmPending=id=>push({...p,pendingItems:p.pendingItems.filter(b=>b.id!==id)});
+  const addDate=()=>{ if(!newDate.label.trim()) return; push({...p,keyDates:[...p.keyDates,{id:"d"+Date.now(),...newDate}]}); setNewDate({label:"",date:"",type:"milestone"}); };
+  const rmDate=id=>push({...p,keyDates:p.keyDates.filter(d=>d.id!==id)});
+
+  const card={background:"#fff",border:"1.5px solid #E2E8F0",borderRadius:12,padding:18};
+
+  return <div>
+    <button onClick={onBack} style={{background:"none",border:"none",color:"#06B6D4",cursor:"pointer",fontSize:13,fontWeight:700,padding:0,marginBottom:16}}>← Dashboard</button>
+
+    <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",gap:16,marginBottom:16}}>
+      <div style={{display:"flex",gap:12,alignItems:"flex-start"}}>
+        <div style={{width:4,height:48,borderRadius:2,background:p.color,flexShrink:0,marginTop:2}}/>
+        <div>
+          <h2 style={{fontSize:22,fontWeight:900,color:"#0F172A",margin:0,letterSpacing:-.4}}>{p.name}</h2>
+          <div style={{color:"#64748B",fontSize:13,marginTop:5,lineHeight:1.5}}>{p.description}</div>
+        </div>
+      </div>
+      <div style={{display:"flex",gap:8,flexShrink:0}}>
+        <button onClick={()=>setEditOpen(true)} style={{background:"#F1F5F9",border:"1.5px solid #E2E8F0",color:"#334155",padding:"7px 14px",borderRadius:8,cursor:"pointer",fontSize:13,fontWeight:600}}>Edit</button>
+        <button onClick={()=>{ if(window.confirm("Delete this project?")) onDelete(p.id); }} style={{background:"#FEF2F2",border:"1.5px solid #FECACA",color:"#EF4444",padding:"7px 14px",borderRadius:8,cursor:"pointer",fontSize:13,fontWeight:600}}>Delete</button>
+      </div>
+    </div>
+
+    <div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:20}}>
+      <span style={{fontSize:11,fontWeight:700,padding:"4px 10px",borderRadius:20,background:`${healthColors[p.health]}15`,color:healthColors[p.health],border:`1px solid ${healthColors[p.health]}30`}}>{healthLabels[p.health]}</span>
+      <span style={{fontSize:11,fontWeight:700,padding:"4px 10px",borderRadius:20,background:`${priorityColors[p.priority]}15`,color:priorityColors[p.priority],border:`1px solid ${priorityColors[p.priority]}30`}}>{p.priority?.toUpperCase()} PRIORITY</span>
+      {days!==null&&<span style={{fontSize:11,fontWeight:700,padding:"4px 10px",borderRadius:20,background:days<0?"#FEF2F2":"#F0FDFF",color:days<0?"#EF4444":"#0891B2",border:`1px solid ${days<0?"#FECACA":"#A5F3FC"}`}}>{days<0?`${Math.abs(days)}d overdue`:days===0?"Due today":`${days}d remaining`}</span>}
+      {p.startDate&&<span style={{fontSize:11,color:"#94A3B8",padding:"4px 8px"}}>Start: {fmtDate(p.startDate)}</span>}
+      {p.dueDate&&<span style={{fontSize:11,color:"#94A3B8",padding:"4px 8px"}}>Due: {fmtDate(p.dueDate)}</span>}
+    </div>
+
+    <div style={{...card,marginBottom:14,display:"flex",alignItems:"center",gap:22,borderTop:`3px solid ${p.color}`}}>
+      <Gauge pct={pct} color={p.color} size={90}/>
+      <div style={{flex:1}}>
+        <div style={{color:"#0F172A",fontWeight:800,fontSize:15,marginBottom:7}}>Overall Completion</div>
+        <Bar pct={pct} color={p.color}/>
+        <div style={{color:"#94A3B8",fontSize:12,marginTop:7}}>{tot>0?`${done} of ${tot} tasks complete`:"Adjust manually:"}</div>
+        {tot===0&&<input type="range" min={0} max={100} value={p.completion} onChange={e=>push({...p,completion:Number(e.target.value)})} style={{width:"100%",marginTop:8}}/>}
+      </div>
+    </div>
+
+    {/* Action Items */}
+    <div style={{...card,marginBottom:14}}>
+      <div style={{color:"#0F172A",fontWeight:800,fontSize:13,marginBottom:14,display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+        <div style={{display:"flex",alignItems:"center",gap:7}}>
+          <span style={{background:"#F0FDFF",color:"#06B6D4",width:22,height:22,borderRadius:6,display:"inline-flex",alignItems:"center",justifyContent:"center",fontSize:12}}>✓</span>
+          Action Items
+        </div>
+        <div style={{display:"flex",gap:6}}>
+          {teamMembers.map(m=>{
+            const count=(p.actionItems||[]).filter(a=>a.assignee===m&&!a.done).length;
+            if(!count) return null;
+            return <span key={m} style={{fontSize:10,fontWeight:700,padding:"2px 8px",borderRadius:20,background:`${assigneeColors[m]||"#94A3B8"}15`,color:assigneeColors[m]||"#94A3B8"}}>{m}: {count}</span>;
+          })}
+        </div>
+      </div>
+      <div style={{display:"flex",flexDirection:"column",gap:2,marginBottom:14,maxHeight:280,overflowY:"auto"}}>
+        {(p.actionItems||[]).map(a=>(
+          <div key={a.id} style={{display:"flex",alignItems:"center",gap:9,padding:"8px 10px",borderRadius:8,background:a.done?"#F8FAFC":"#fff",border:"1px solid #F1F5F9",marginBottom:2}}>
+            <div onClick={()=>toggleAction(a.id)} style={{width:18,height:18,borderRadius:5,border:`2px solid ${a.done?p.color:"#CBD5E1"}`,background:a.done?p.color:"transparent",flexShrink:0,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",transition:"all 0.15s"}}>
+              {a.done&&<svg width="10" height="10" viewBox="0 0 10 10"><polyline points="1.5,5 4,7.5 8.5,2.5" fill="none" stroke="#fff" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+            </div>
+            <span style={{flex:1,color:a.done?"#94A3B8":"#334155",fontSize:13,textDecoration:a.done?"line-through":"none"}}>{a.text}</span>
+            <select value={a.assignee||""} onChange={e=>changeAssignee(a.id,e.target.value)}
+              style={{background:"transparent",border:"none",fontSize:12,color:a.assignee?(assigneeColors[a.assignee]||"#334155"):"#CBD5E1",cursor:"pointer",outline:"none",padding:"2px 4px",borderRadius:6,fontWeight:600}}>
+              <option value="">Assign…</option>
+              {teamMembers.map(m=><option key={m} value={m}>{m}</option>)}
+            </select>
+            {a.assignee&&<AssigneeBadge name={a.assignee}/>}
+            <button onClick={()=>rmAction(a.id)} style={{background:"none",border:"none",color:"#CBD5E1",cursor:"pointer",fontSize:18,lineHeight:1,padding:"0 2px",flexShrink:0}}
+              onMouseEnter={e=>e.currentTarget.style.color="#EF4444"} onMouseLeave={e=>e.currentTarget.style.color="#CBD5E1"}>×</button>
+          </div>
+        ))}
+        {(p.actionItems||[]).length===0&&<div style={{color:"#CBD5E1",fontSize:12,padding:8}}>No tasks yet — add one below</div>}
+      </div>
+      <div style={{display:"flex",gap:7}}>
+        <input style={{...inp,flex:1,fontSize:13}} value={newAction} onChange={e=>setNewAction(e.target.value)} placeholder="Add task..." onKeyDown={e=>e.key==="Enter"&&addAction()}/>
+        <select style={{...inp,width:"auto",fontSize:13,color:newAssignee?(assigneeColors[newAssignee]||"#334155"):"#94A3B8"}} value={newAssignee} onChange={e=>setNewAssignee(e.target.value)}>
+          <option value="">Assign…</option>
+          {teamMembers.map(m=><option key={m} value={m}>{m}</option>)}
+          <option value="__add__">+ Add person</option>
+        </select>
+        <button onClick={()=>{ if(newAssignee==="__add__"){ setShowAddPerson(true); setNewAssignee(""); } else addAction(); }} style={{background:"#06B6D4",border:"none",color:"#fff",padding:"8px 13px",borderRadius:8,cursor:"pointer",fontWeight:800,fontSize:17,lineHeight:1}}>+</button>
+      </div>
+    </div>
+
+    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14,marginBottom:14}}>
+      {/* Pending */}
+      <div style={card}>
+        <div style={{color:"#0F172A",fontWeight:800,fontSize:13,marginBottom:14,display:"flex",alignItems:"center",gap:7}}>
+          <span style={{background:"#FFFBEB",color:"#F59E0B",width:22,height:22,borderRadius:6,display:"inline-flex",alignItems:"center",justifyContent:"center",fontSize:12}}>⏳</span>
+          Pending / Waiting On
+        </div>
+        <div style={{display:"flex",flexDirection:"column",gap:7,marginBottom:11,maxHeight:160,overflowY:"auto"}}>
+          {(p.pendingItems||[]).map(b=><div key={b.id} style={{background:"#F8FAFC",border:"1px solid #F1F5F9",borderRadius:8,padding:"8px 10px"}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
+              <span style={{color:"#334155",fontSize:13,flex:1,marginRight:6,lineHeight:1.4}}>{b.text}</span>
+              <button onClick={()=>rmPending(b.id)} style={{background:"none",border:"none",color:"#CBD5E1",cursor:"pointer",fontSize:18,lineHeight:1,flexShrink:0}}
+                onMouseEnter={e=>e.currentTarget.style.color="#EF4444"} onMouseLeave={e=>e.currentTarget.style.color="#CBD5E1"}>×</button>
+            </div>
+            <div style={{display:"flex",gap:10,marginTop:4}}>
+              {b.owner&&<span style={{color:"#64748B",fontSize:11,fontWeight:600}}>👤 {b.owner}</span>}
+              {b.due&&<span style={{color:"#64748B",fontSize:11}}>📅 {b.due==="TBD"?"TBD":fmtDate(b.due)}</span>}
+            </div>
+          </div>)}
+          {(p.pendingItems||[]).length===0&&<div style={{color:"#CBD5E1",fontSize:12}}>Nothing pending</div>}
+        </div>
+        <div style={{display:"flex",flexDirection:"column",gap:6}}>
+          <input style={{...inp,fontSize:13}} value={newPending.text} onChange={e=>setNewPending(f=>({...f,text:e.target.value}))} placeholder="What are you waiting on?"/>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6}}>
+            <input style={{...inp,fontSize:12}} value={newPending.owner} onChange={e=>setNewPending(f=>({...f,owner:e.target.value}))} placeholder="Owner"/>
+            <input style={{...inp,fontSize:12}} value={newPending.due} onChange={e=>setNewPending(f=>({...f,due:e.target.value}))} placeholder="Due (e.g. Jul 10)"/>
+          </div>
+          <button onClick={addPending} style={{background:"#F8FAFC",border:"1.5px solid #E2E8F0",color:"#64748B",padding:"7px",borderRadius:8,cursor:"pointer",fontSize:13,fontWeight:600}}>+ Add Pending Item</button>
+        </div>
+      </div>
+
+      {/* Key Dates */}
+      <div style={card}>
+        <div style={{color:"#0F172A",fontWeight:800,fontSize:13,marginBottom:14,display:"flex",alignItems:"center",gap:7}}>
+          <span style={{background:"#F0FDFF",color:"#06B6D4",width:22,height:22,borderRadius:6,display:"inline-flex",alignItems:"center",justifyContent:"center",fontSize:12}}>📅</span>
+          Key Dates
+        </div>
+        <div style={{display:"flex",flexWrap:"wrap",gap:8,marginBottom:12}}>
+          {(p.keyDates||[]).map(d=>{
+            const rem=daysUntil(d.date);
+            return <div key={d.id} style={{background:"#F8FAFC",border:`1.5px solid ${dateTypeColors[d.type]}30`,borderLeft:`3px solid ${dateTypeColors[d.type]}`,borderRadius:8,padding:"8px 10px",minWidth:130,position:"relative"}}>
+              <div style={{color:"#334155",fontSize:12,fontWeight:700,marginBottom:1}}>{d.label}</div>
+              <div style={{color:"#64748B",fontSize:11}}>{fmtDate(d.date)}</div>
+              {rem!==null&&<div style={{color:rem<=7&&rem>=0?"#F59E0B":"#CBD5E1",fontSize:10,marginTop:2}}>{rem<0?`${Math.abs(rem)}d ago`:rem===0?"Today":`In ${rem}d`}</div>}
+              <button onClick={()=>rmDate(d.id)} style={{position:"absolute",top:4,right:5,background:"none",border:"none",color:"#CBD5E1",cursor:"pointer",fontSize:15,lineHeight:1}}
+                onMouseEnter={e=>e.currentTarget.style.color="#EF4444"} onMouseLeave={e=>e.currentTarget.style.color="#CBD5E1"}>×</button>
+            </div>;
+          })}
+          {(p.keyDates||[]).length===0&&<div style={{color:"#CBD5E1",fontSize:12}}>No key dates yet</div>}
+        </div>
+        <div style={{display:"flex",flexDirection:"column",gap:6}}>
+          <input style={{...inp,fontSize:13}} value={newDate.label} onChange={e=>setNewDate(f=>({...f,label:e.target.value}))} placeholder="Label (e.g. Go-Live)"/>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6}}>
+            <input type="date" style={{...inp,fontSize:12}} value={newDate.date} onChange={e=>setNewDate(f=>({...f,date:e.target.value}))}/>
+            <select style={{...inp,fontSize:12}} value={newDate.type} onChange={e=>setNewDate(f=>({...f,type:e.target.value}))}>
+              <option value="milestone">Milestone</option><option value="review">Review</option><option value="deadline">Deadline</option>
+            </select>
+          </div>
+          <button onClick={addDate} style={{background:"#06B6D4",border:"none",color:"#fff",padding:"8px",borderRadius:8,cursor:"pointer",fontSize:13,fontWeight:700}}>+ Add Date</button>
+        </div>
+      </div>
+    </div>
+
+    <div style={card}>
+      <div style={{color:"#94A3B8",fontSize:11,fontWeight:700,marginBottom:8,textTransform:"uppercase",letterSpacing:.8}}>Notes</div>
+      <textarea style={{...inp,resize:"vertical",minHeight:72,background:"transparent",border:"none",padding:0,fontSize:13,lineHeight:1.65,color:"#334155"}}
+        value={p.notes||""} onChange={e=>push({...p,notes:e.target.value})} placeholder="Add project notes..."/>
+    </div>
+
+    {editOpen&&<ProjectModal mode="edit" initial={p} onClose={()=>setEditOpen(false)} onSave={updated=>{ push({...p,...updated}); setEditOpen(false); }}/>}
+    {showAddPerson&&<AddPersonModal onClose={()=>setShowAddPerson(false)} onAdd={(name,email)=>{ onAddPerson(name,email); setShowAddPerson(false); }}/>}
+  </div>;
+}
+
+function App() {
+  const [projects,setProjects] = useState([]);
+  const [tab,setTab] = useState("dashboard");
+  const [showAdd,setShowAdd] = useState(false);
+  const [syncing,setSyncing] = useState(false);
+  const [status,setStatus] = useState("loading");
+  const [teamMembers,setTeamMembers] = useState(DEFAULT_TEAM);
+
+  useEffect(()=>{
+    fetch(`${SCRIPT_URL}?action=load`)
+      .then(r=>r.json())
+      .then(data=>{
+        if(data.success){ setProjects(data.projects.length>0?data.projects:SEED); if(data.projects.length===0) syncToSheet(SEED); }
+        else setProjects(SEED);
+        setStatus("ready");
+      })
+      .catch(()=>{ setProjects(SEED); setStatus("error"); });
+  },[]);
+
+  const syncToSheet = useCallback((ps)=>{
+    setSyncing(true);
+    fetch(SCRIPT_URL,{method:"POST",body:JSON.stringify({action:"save",projects:ps})})
+      .then(r=>r.json()).then(()=>setSyncing(false)).catch(()=>setSyncing(false));
+  },[]);
+
+  const updateProject=u=>{ const updated=projects.map(p=>p.id===u.id?u:p); setProjects(updated); syncToSheet(updated); };
+  const deleteProject=id=>{ const updated=projects.filter(p=>p.id!==id); setProjects(updated); syncToSheet(updated); setTab("dashboard"); };
+  const addProject=f=>{ const np={...f,id:"p"+Date.now(),completion:0,status:"active",actionItems:[],pendingItems:[],keyDates:[]}; const updated=[...projects,np]; setProjects(updated); syncToSheet(updated); setShowAdd(false); setTab(np.id); };
+  const addPerson=(name,email)=>{ setTeamMembers(t=>[...t,name]); };
+
+  const activeP=projects.find(p=>p.id===tab);
+
+  if(status==="loading") return <div style={{background:"#F7F9FB",height:"100vh",display:"flex",alignItems:"center",justifyContent:"center",flexDirection:"column",gap:12}}>
+    <div style={{width:36,height:36,border:"3px solid #E2E8F0",borderTopColor:"#06B6D4",borderRadius:"50%",animation:"spin 0.8s linear infinite"}}/>
+    <div style={{color:"#94A3B8",fontSize:14}}>Loading projects…</div>
+    <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+  </div>;
+
+  return <div style={{display:"flex",height:"100vh",overflow:"hidden",background:"#F7F9FB"}}>
+    <div style={{width:216,background:"#fff",borderRight:"1.5px solid #E2E8F0",display:"flex",flexDirection:"column",flexShrink:0,overflow:"hidden"}}>
+      <div style={{padding:"20px 16px 16px",borderBottom:"1.5px solid #F1F5F9"}}>
+        <div style={{color:"#06B6D4",fontWeight:900,fontSize:11,textTransform:"uppercase",letterSpacing:2,marginBottom:3}}>EMC & Co</div>
+        <div style={{color:"#0F172A",fontWeight:800,fontSize:15}}>Project Tracker</div>
+        {status==="error"&&<div style={{color:"#F59E0B",fontSize:10,marginTop:4}}>⚠ Running offline</div>}
+      </div>
+      <nav style={{flex:1,padding:"10px 0",overflowY:"auto"}}>
+        <button onClick={()=>setTab("dashboard")} style={{width:"100%",textAlign:"left",padding:"9px 16px",background:tab==="dashboard"?"#F0FDFF":"transparent",border:"none",borderRight:tab==="dashboard"?"3px solid #06B6D4":"3px solid transparent",color:tab==="dashboard"?"#0891B2":"#64748B",cursor:"pointer",fontSize:13,fontWeight:tab==="dashboard"?700:500,display:"flex",alignItems:"center",gap:8}}>
+          <span style={{fontSize:14}}>⊞</span> Dashboard
+        </button>
+        <div style={{color:"#CBD5E1",fontSize:10,textTransform:"uppercase",letterSpacing:1,fontWeight:700,padding:"14px 16px 5px"}}>Projects</div>
+        {projects.map(p=>{
+          const done=(p.actionItems||[]).filter(a=>a.done).length;
+          const tot=(p.actionItems||[]).length;
+          const pct=tot>0?Math.round((done/tot)*100):p.completion;
+          return <button key={p.id} onClick={()=>setTab(p.id)} style={{width:"100%",textAlign:"left",padding:"8px 16px",background:tab===p.id?"#F0FDFF":"transparent",border:"none",borderRight:tab===p.id?"3px solid #06B6D4":"3px solid transparent",cursor:"pointer",display:"flex",alignItems:"center",gap:8}}>
+            <div style={{width:7,height:7,borderRadius:"50%",background:p.color,flexShrink:0}}/>
+            <span style={{color:tab===p.id?"#0891B2":"#64748B",fontSize:13,fontWeight:tab===p.id?700:500,flex:1,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{p.name}</span>
+            <span style={{fontSize:10,color:"#CBD5E1",flexShrink:0}}>{pct}%</span>
+          </button>;
+        })}
+      </nav>
+      <div style={{padding:"12px",borderTop:"1.5px solid #F1F5F9"}}>
+        <button onClick={()=>setShowAdd(true)} style={{width:"100%",padding:"9px",background:"#06B6D4",border:"none",color:"#fff",borderRadius:8,cursor:"pointer",fontSize:13,fontWeight:700,boxShadow:"0 2px 8px rgba(6,182,212,0.3)"}}>
+          + New Project
+        </button>
+      </div>
+    </div>
+
+    <div style={{flex:1,overflowY:"auto",padding:"30px 32px"}}>
+      <div style={{maxWidth:900,margin:"0 auto"}}>
+        {tab==="dashboard"
+          ? <Dashboard projects={projects} onSelect={id=>setTab(id)} onAdd={()=>setShowAdd(true)} syncing={syncing}/>
+          : activeP
+            ? <ProjectDetail project={activeP} onUpdate={updateProject} onDelete={deleteProject} onBack={()=>setTab("dashboard")} teamMembers={teamMembers} onAddPerson={addPerson}/>
+            : <div style={{color:"#94A3B8"}}>Project not found.</div>
+        }
+      </div>
+    </div>
+
+    {showAdd&&<ProjectModal mode="add" onClose={()=>setShowAdd(false)} onSave={addProject}/>}
+  </div>;
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
+</script>
+</body>
+</html>
